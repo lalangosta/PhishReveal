@@ -1,0 +1,14 @@
+From: suport@institucio-prova.cat
+To: usuari@institucio-prova.cat
+Subject: Urgente: Actualización requerida de credenciales
+Date: Thu, 24 Sep 2026 10:00:00 +0200
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html>
+  <body>
+    <p>Estimado usuario,</p>
+    <p>Hemos detectado actividad inusual en su cuenta. Por favor, valide su acceso en el siguiente enlace:</p>
+    <p><a href="http://localhost:8000/web.html">Acceder al portal de validación</a></p>
+  </body>
+</html>

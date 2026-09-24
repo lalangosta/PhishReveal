@@ -1,0 +1,19 @@
+{
+    "metadata": {
+        "subject": "Urgente: Actualización requerida de credenciales",
+        "sender": "suport@institucio-prova.cat"
+    },
+    "threat_intelligence": {
+        "total_urls_found": 1,
+        "findings": [
+            {
+                "url": "http://localhost:8000/web.html",
+                "domain": "localhost:8000",
+                "hosted_on_free_platform": true,
+                "has_password_form": true,
+                "screenshot_path": "evidencia_localhost:8000.png",
+                "risk_level": "ALTO (Posible Robo de Credenciales)"
+            }
+        ]
+    }
+}
