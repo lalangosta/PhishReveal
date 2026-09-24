@@ -5,16 +5,20 @@ import json
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
+import requests
 
 class PhishReveal:
-    def __init__(self):
+    def __init__(self, vt_api_key=None):
         self.suspicious_hosts = [
             'sites.google.com',
             'firebaseapp.com',
             'notion.site',
             'canva.site',
-            'weebly.com'
+            'weebly.com',
+            'localhost'  # Añadido para pruebas locales
         ]
+        # Clave API de VirusTotal
+        self.vt_api_key = vt_api_key
 
     def parse_eml(self, file_path):
         """Lee y extrae la información básica y el cuerpo de un archivo .eml"""
@@ -59,20 +63,62 @@ class PhishReveal:
             
         return list(urls)
 
+    def check_virustotal_domain(self, domain):
+        """Consulta la reputación del dominio en la API v3 de VirusTotal"""
+        if not self.vt_api_key:
+            return {"status": "skipped", "reason": "No se proporcionó API key de VirusTotal"}
+        
+        # Omitir comprobaciones para dominios locales
+        clean_domain = domain.split(":")[0]
+        if clean_domain in ["localhost", "127.0.0.1"]:
+            return {"status": "skipped", "reason": "Dominio local"}
+
+        url = f"https://www.virustotal.com/api/v3/domains/{clean_domain}"
+        headers = {
+            "x-apikey": self.vt_api_key,
+            "Accept": "application/json"
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                stats = response.json().get('data', {}).get('attributes', {}).get('last_analysis_stats', {})
+                return {
+                    "status": "success",
+                    "malicious": stats.get("malicious", 0),
+                    "suspicious": stats.get("suspicious", 0),
+                    "harmless": stats.get("harmless", 0),
+                    "undetected": stats.get("undetected", 0)
+                }
+            elif response.status_code == 404:
+                return {"status": "not_found", "reason": "Dominio no registrado previamente en VirusTotal"}
+            else:
+                return {"status": "error", "http_code": response.status_code}
+        except Exception as e:
+            return {"status": "error", "details": str(e)}
+
     def analyze_url(self, url):
         """Analiza la URL buscando indicadores de riesgo y analiza el destino web"""
         parsed_url = urlparse(url)
         domain = parsed_url.netloc.lower()
         
+        # Consultamos la reputación del dominio en VirusTotal
+        vt_stats = self.check_virustotal_domain(domain)
+        
         is_suspicious_host = any(host in domain for host in self.suspicious_hosts)
         analysis_result = {
             'url': url,
             'domain': domain,
+            'virustotal_stats': vt_stats,
             'hosted_on_free_platform': is_suspicious_host,
             'has_password_form': False,
             'screenshot_path': None,
             'risk_level': 'BAJO'
         }
+
+        # Actualizar riesgo si VirusTotal detecta que el dominio es malicioso
+        if vt_stats.get("status") == "success" and vt_stats.get("malicious", 0) > 0:
+            analysis_result['risk_level'] = f"ALTO (Detectado por {vt_stats['malicious']} motores en VirusTotal)"
 
         # Si el enlace apunta a un servicio de alojamiento gratuito, inspeccionar la web
         if is_suspicious_host:
@@ -96,11 +142,13 @@ class PhishReveal:
                         analysis_result['risk_level'] = 'ALTO (Posible Robo de Credenciales)'
                         
                         # Guardar evidencia
-                        screenshot_name = f"evidencia_{domain.replace('.', '_')}.png"
+                        safe_domain = domain.replace(':', '_').replace('.', '_')
+                        screenshot_name = f"evidencia_{safe_domain}.png"
                         page.screenshot(path=screenshot_name)
                         analysis_result['screenshot_path'] = screenshot_name
                     else:
-                        analysis_result['risk_level'] = 'MEDIO (Plataforma gratuita, sin formulario visible)'
+                        if analysis_result['risk_level'] == 'BAJO':
+                            analysis_result['risk_level'] = 'MEDIO (Plataforma gratuita, sin formulario visible)'
                         
                 except Exception as e:
                     analysis_result['error'] = str(e)
@@ -132,7 +180,10 @@ if __name__ == "__main__":
     # Ruta al correo sospechoso en formato .eml 
     sample_eml = "correo_sospechoso.eml"
     
-    scanner = PhishReveal()
+    # Clave API de VirusTotal (dejar en None si no se desea usar)
+    vt_key = None
+    
+    scanner = PhishReveal(vt_api_key=vt_key)
     print(f"[*] Parseando correo: {sample_eml}")
     
     email_data = scanner.parse_eml(sample_eml)

@@ -9,9 +9,13 @@
             {
                 "url": "http://localhost:8000/web.html",
                 "domain": "localhost:8000",
+                "virustotal_stats": {
+                    "status": "skipped",
+                    "reason": "No se proporcionó API key de VirusTotal"
+                },
                 "hosted_on_free_platform": true,
                 "has_password_form": true,
-                "screenshot_path": "evidencia_localhost:8000.png",
+                "screenshot_path": "evidencia_localhost_8000.png",
                 "risk_level": "ALTO (Posible Robo de Credenciales)"
             }
         ]
